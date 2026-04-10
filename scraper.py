@@ -39,22 +39,29 @@ def acumula_datos_diario():
         root = ET.fromstring(r_ae.content)
         for dia in root.findall('.//dia'):
             fecha = dia.get('fecha')
+            
+            # Temperaturas
             for t in dia.findall('temperatura'):
-                dt_str = f"{datetime.strptime(f'{fecha} {t.get("periodo")}', '%Y-%m-%d %H').strftime('%d-%m-%Y_%H:00')}"
+                h = t.get('periodo')
+                dt_str = datetime.strptime(f"{fecha} {h}", '%Y-%m-%d %H').strftime('%d-%m-%Y_%H:00')
                 temp_aemet[dt_str] = float(t.text) if t.text else None
                 
             # Precipitaciones
             for p in dia.findall('precipitacion'):
-                dt_str = f"{datetime.strptime(f'{fecha} {p.get("periodo")}', '%Y-%m-%d %H').strftime('%d-%m-%Y_%H:00')}"
+                h = p.get('periodo')
+                dt_str = datetime.strptime(f"{fecha} {h}", '%Y-%m-%d %H').strftime('%d-%m-%Y_%H:00')
                 valor_p = p.text
                 if valor_p == 'Ip': valor_p = 0.05
                 lluvia_aemet[dt_str] = float(valor_p) if valor_p else 0.0
                 
             # Viento
             for v in dia.findall('viento'):
-                dt_str = f"{datetime.strptime(f'{fecha} {v.get("periodo")}', '%Y-%m-%d %H').strftime('%d-%m-%Y_%H:00')}"
-                viento_aemet[dt_str] = float(v.find('velocidad').text) if v.find('velocidad') is not None else None
-    except: print("⚠️ Fallo en AEMET XML")
+                h = v.get('periodo')
+                dt_str = datetime.strptime(f"{fecha} {h}", '%Y-%m-%d %H').strftime('%d-%m-%Y_%H:00')
+                vel = v.find('velocidad').text if v.find('velocidad') is not None else None
+                viento_aemet[dt_str] = float(vel) if vel else None
+    except Exception as e: 
+        print(f"⚠️ Fallo en AEMET XML: {e}")
 
     # --- FASE 3: CARGAR HISTÓRICO ---
     cols = ['Fecha_Captura', 'Fecha_Objetivo', 'Temp_OM', 'Lluvia_OM', 'Viento_OM', 
@@ -73,20 +80,15 @@ def acumula_datos_diario():
         lines = r_csv.text.splitlines()
         start_idx = next(i for i, line in enumerate(lines) if "Fecha y hora oficial" in line)
         df_reales = pd.read_csv(StringIO("\n".join(lines[start_idx:])))
-        
-        # Limpiamos nombres de columnas por si acaso
         df_reales.columns = [c.strip() for c in df_reales.columns]
 
         for _, row in df_reales.iterrows():
             try:
-                # Convertir fecha del CSV a nuestro formato
                 f_real_dt = datetime.strptime(str(row.iloc[0]).strip(), '%d/%m/%Y %H:%M')
                 f_obj_str = f_real_dt.strftime('%d-%m-%Y_%H:00')
                 
-                # Si esa hora ya existe en nuestro histórico, actualizamos lo REAL
                 if f_obj_str in historico['Fecha_Objetivo'].values:
                     idx = historico['Fecha_Objetivo'] == f_obj_str
-                    # Usamos .iloc para asegurar que cogemos la columna correcta
                     historico.loc[idx, 'Temp_REAL'] = float(row.iloc[1])
                     historico.loc[idx, 'Viento_REAL'] = round(float(row.iloc[2]) * KT_TO_KMH, 2)
                     historico.loc[idx, 'Lluvia_REAL'] = float(row.iloc[6])
@@ -113,13 +115,10 @@ def acumula_datos_diario():
     # --- FASE 6: ORDENAR Y GUARDAR ---
     historico['temp_dt'] = pd.to_datetime(historico['Fecha_Objetivo'], format='%d-%m-%Y_%H:00')
     historico = historico.sort_values('temp_dt').drop(columns=['temp_dt'])
-    historico.to_csv(archivo_txt, sep='\t', index=False)
-    print(f"✅ Proceso finalizado. Archivo actualizado.")
+    
+    # Guardado final
+    historico.to_csv(archivo_txt, sep='\t', index=False, na_rep='')
+    print(f"✅ Proceso finalizado. Archivo {archivo_txt} actualizado.")
 
 if __name__ == "__main__":
     acumula_datos_diario()
-
-# Guardamos el archivo
-df_total.to_csv(archivo_txt, sep='\t', index=False, na_rep='')
-
-print("✅ Proceso completado con éxito. Archivo historico.txt actualizado.")
