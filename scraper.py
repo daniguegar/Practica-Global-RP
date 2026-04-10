@@ -44,7 +44,9 @@ url_aemet_pred = 'https://www.aemet.es/xml/municipios_h/localidad_h_11031.xml'
 temp_aemet, lluvia_aemet, viento_aemet = {}, {}, {}
 
 try:
-    respuesta_xml = requests.get(url_aemet_pred)
+    # Le ponemos el "disfraz" de navegador para que AEMET no nos bloquee
+    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
+    respuesta_xml = requests.get(url_aemet_pred, headers=headers)
     root = ET.fromstring(respuesta_xml.content)
     
     for dia in root.findall('.//dia'):
@@ -53,20 +55,21 @@ try:
         for temp in dia.findall('.//temperatura'):
             periodo = temp.get('periodo')
             if periodo and temp.text:
-                hora_str = f"{fecha_dia} {periodo}:00"
+                # zfill(2) asegura que '1' se convierta en '01'
+                hora_str = f"{fecha_dia} {periodo.zfill(2)}:00"
                 temp_aemet[hora_str] = float(temp.text)
                 
         for prec in dia.findall('.//precipitacion'):
             periodo = prec.get('periodo')
             if periodo and prec.text:
-                hora_str = f"{fecha_dia} {periodo}:00"
+                hora_str = f"{fecha_dia} {periodo.zfill(2)}:00"
                 lluvia_aemet[hora_str] = float(prec.text)
                 
         for viento in dia.findall('.//viento'):
             periodo = viento.get('periodo')
             vel = viento.find('velocidad')
             if periodo and vel is not None and vel.text:
-                hora_str = f"{fecha_dia} {periodo}:00"
+                hora_str = f"{fecha_dia} {periodo.zfill(2)}:00"
                 viento_aemet[hora_str] = float(vel.text)
 
     df_nuevas['Temp_AEMET'] = df_nuevas['Fecha_Objetivo'].map(temp_aemet)
