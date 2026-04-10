@@ -1,36 +1,39 @@
-name: Robot Meteorológico Diario
+name: Actualizar Datos Meteorológicos
 
-# Cuándo se ejecuta este robot:
 on:
   schedule:
-    # A las 09:15 UTC (que son las 11:15 en España) todos los días
-    - cron: '15 9 * * *'
-  workflow_dispatch: # Esto te pone un botón para ejecutarlo a mano cuando quieras probar
+    - cron: '0 * * * *' # Se ejecuta cada hora
+  workflow_dispatch:      # Permite ejecutarlo manualmente
 
 jobs:
   actualizar_datos:
-    runs-on: ubuntu-latest # El ordenador en la nube será un Linux gratuito
-
+    runs-on: ubuntu-latest
     steps:
-      - name: Descargar el repositorio
-        uses: actions/checkout@v3
+      # 1. Usamos la versión v4 para evitar el aviso de Node.js 20
+      - name: Checkout del repositorio
+        uses: actions/checkout@v4
 
-      - name: Instalar Python
-        uses: actions/setup-python@v4
+      # 2. Usamos la versión v5 para evitar el aviso de Node.js 20
+      - name: Configurar Python
+        uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
+          python-version: '3.11'
 
-      - name: Instalar librerías necesarias
-        run: pip install pandas requests
-
-      - name: Ejecutar nuestro código
-        run: python scraper.py
-
-      - name: Guardar el historico.txt modificado en GitHub
+      # 3. INSTALACIÓN DE LIBRERÍAS (Esto es lo que falta y da el Error 1)
+      - name: Instalar dependencias
         run: |
-          git config --global user.name 'Robot GitHub'
-          git config --global user.email 'acciones@github.com'
+          python -m pip install --upgrade pip
+          pip install pandas requests lxml
+
+      # 4. Ejecutar tu script
+      - name: Ejecutar script de Python
+        run: python acumula_datos_diario.py
+
+      # 5. Guardar los cambios en el historico.txt de vuelta a GitHub
+      - name: Commit y Push de los cambios
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git add historico.txt
-          # Si hay cambios, los guarda (commit) y los sube (push)
-          git commit -m "Actualización diaria de datos meteorológicos" || exit 0
+          git commit -m "Actualización automática: $(date)" || echo "No hay cambios para subir"
           git push
