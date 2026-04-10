@@ -40,14 +40,19 @@ def acumula_datos_diario():
         for dia in root.findall('.//dia'):
             fecha = dia.get('fecha')
             for t in dia.findall('temperatura'):
-                dt_str = f"{datetime.strptime(f'{fecha} {t.get('periodo')}', '%Y-%m-%d %H').strftime('%d-%m-%Y_%H:00')}"
+                dt_str = f"{datetime.strptime(f'{fecha} {t.get("periodo")}', '%Y-%m-%d %H').strftime('%d-%m-%Y_%H:00')}"
                 temp_aemet[dt_str] = float(t.text) if t.text else None
+                
+            # Precipitaciones
             for p in dia.findall('precipitacion'):
-                dt_str = f"{datetime.strptime(f'{fecha} {p.get('periodo')}', '%Y-%m-%d %H').strftime('%d-%m-%Y_%H:00')}"
-                val = p.text if p.text != 'Ip' else '0.05'
-                lluvia_aemet[dt_str] = float(val) if val else 0.0
+                dt_str = f"{datetime.strptime(f'{fecha} {p.get("periodo")}', '%Y-%m-%d %H').strftime('%d-%m-%Y_%H:00')}"
+                valor_p = p.text
+                if valor_p == 'Ip': valor_p = 0.05
+                lluvia_aemet[dt_str] = float(valor_p) if valor_p else 0.0
+                
+            # Viento
             for v in dia.findall('viento'):
-                dt_str = f"{datetime.strptime(f'{fecha} {v.get('periodo')}', '%Y-%m-%d %H').strftime('%d-%m-%Y_%H:00')}"
+                dt_str = f"{datetime.strptime(f'{fecha} {v.get("periodo")}', '%Y-%m-%d %H').strftime('%d-%m-%Y_%H:00')}"
                 viento_aemet[dt_str] = float(v.find('velocidad').text) if v.find('velocidad') is not None else None
     except: print("⚠️ Fallo en AEMET XML")
 
