@@ -1,0 +1,36 @@
+name: Robot Meteorológico Diario
+
+# Cuándo se ejecuta este robot:
+on:
+  schedule:
+    # A las 09:15 UTC (que son las 11:15 en España) todos los días
+    - cron: '15 9 * * *'
+  workflow_dispatch: # Esto te pone un botón para ejecutarlo a mano cuando quieras probar
+
+jobs:
+  actualizar_datos:
+    runs-on: ubuntu-latest # El ordenador en la nube será un Linux gratuito
+
+    steps:
+      - name: Descargar el repositorio
+        uses: actions/checkout@v3
+
+      - name: Instalar Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Instalar librerías necesarias
+        run: pip install pandas requests
+
+      - name: Ejecutar nuestro código
+        run: python scraper.py
+
+      - name: Guardar el historico.txt modificado en GitHub
+        run: |
+          git config --global user.name 'Robot GitHub'
+          git config --global user.email 'acciones@github.com'
+          git add historico.txt
+          # Si hay cambios, los guarda (commit) y los sube (push)
+          git commit -m "Actualización diaria de datos meteorológicos" || exit 0
+          git push
