@@ -43,34 +43,46 @@ print("Fase 2: Descargando AEMET Predicciones (XML)...")
 url_aemet_pred = 'https://www.aemet.es/xml/municipios_h/localidad_h_11031.xml'
 temp_aemet, lluvia_aemet, viento_aemet = {}, {}, {}
 
+def dato_seguro(valor):
+    if not valor:
+        return None
+    # Quitamos espacios y cambiamos comas por puntos (por si acaso)
+    valor = valor.strip().replace(',', '.')
+    # Si AEMET manda "Ip" (Inapreciable), lo forzamos a 0.0 para que Python no se congele
+    if valor.lower() == 'ip':
+        return 0.0
+    try:
+        return float(valor)
+    except ValueError:
+        return None
+
 try:
-    # Le ponemos el "disfraz" de navegador para que AEMET no nos bloquee
     headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
     respuesta_xml = requests.get(url_aemet_pred, headers=headers)
     root = ET.fromstring(respuesta_xml.content)
     
     for dia in root.findall('.//dia'):
-        fecha_dia = dia.get('fecha') # Ej: 2026-04-10
+        fecha_dia = dia.get('fecha')
+        if not fecha_dia: continue
         
         for temp in dia.findall('.//temperatura'):
             periodo = temp.get('periodo')
             if periodo and temp.text:
-                # zfill(2) asegura que '1' se convierta en '01'
                 hora_str = f"{fecha_dia} {periodo.zfill(2)}:00"
-                temp_aemet[hora_str] = float(temp.text)
+                temp_aemet[hora_str] = dato_seguro(temp.text)
                 
         for prec in dia.findall('.//precipitacion'):
             periodo = prec.get('periodo')
             if periodo and prec.text:
                 hora_str = f"{fecha_dia} {periodo.zfill(2)}:00"
-                lluvia_aemet[hora_str] = float(prec.text)
+                lluvia_aemet[hora_str] = dato_seguro(prec.text)
                 
         for viento in dia.findall('.//viento'):
             periodo = viento.get('periodo')
             vel = viento.find('velocidad')
             if periodo and vel is not None and vel.text:
                 hora_str = f"{fecha_dia} {periodo.zfill(2)}:00"
-                viento_aemet[hora_str] = float(vel.text)
+                viento_aemet[hora_str] = dato_seguro(vel.text)
 
     df_nuevas['Temp_AEMET'] = df_nuevas['Fecha_Objetivo'].map(temp_aemet)
     df_nuevas['Lluvia_AEMET'] = df_nuevas['Fecha_Objetivo'].map(lluvia_aemet)
@@ -78,7 +90,6 @@ try:
 
 except Exception as e:
     print(f"⚠️ Error AEMET XML: {e}")
-    df_nuevas[['Temp_AEMET', 'Lluvia_AEMET', 'Viento_AEMET']] = None
 
 # --- FASE 3: CARGAR O CREAR HISTÓRICO ---
 columnas_hist = ['Fecha_Captura', 'Fecha_Objetivo', 'Temp_OM', 'Lluvia_OM', 'Viento_OM', 
