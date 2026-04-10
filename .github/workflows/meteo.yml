@@ -26,8 +26,9 @@ jobs:
           pip install pandas requests lxml
 
       # 4. Ejecutar tu script
+      # ... pasos anteriores ...
       - name: Ejecutar script de Python
-        run: python acumula_datos_diario.py
+        run: python scraper.py  # <--- Asegúrate de que ponga esto
 
       # 5. Guardar los cambios en el historico.txt de vuelta a GitHub
       - name: Commit y Push de los cambios
